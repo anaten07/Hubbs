@@ -1,285 +1,164 @@
+// app/(tabs)/index.tsx — Feed (home). README §5.1, ported from hobbs-screens-feed.jsx.
 
-import { Text, View, ScrollView, TextInput, TouchableOpacity, StatusBar, RefreshControl } from 'react-native';
-import React, { useState } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
-import { commonStyles, colors, shadows } from '../../styles/commonStyles';
-import MapView from '../../components/MapView';
-import PremiumFeatures from '../../components/PremiumFeatures';
-import PilotCard from '../../components/PilotCard';
-import Icon from '../../components/Icon';
-import { router } from 'expo-router';
-import FlightBooking from '../../components/FlightBooking';
-import { usePilots } from '../../hooks/usePilots';
-import { useWeather } from '../../hooks/useWeather';
+import React from 'react';
+import { View, ScrollView, Pressable } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { H, radii, spacing, fonts } from '@/theme/tokens';
+import { H_ME, H_INVITES, H_FEED, H_PILOT } from '@/data/seed';
+import HText from '@/components/hobbs/HText';
+import HIcon from '@/components/hobbs/HIcon';
+import HAvatar from '@/components/hobbs/HAvatar';
+import HFeedItem from '@/components/hobbs/HFeedItem';
+import { HChip, HSectionTitle } from '@/components/hobbs/primitives';
 
-export default function HomeScreen() {
-  console.log('HomeScreen component rendering...');
-  
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('all');
-  const [showBooking, setShowBooking] = useState(false);
-  const [selectedPilot, setSelectedPilot] = useState('');
+// route name within the tab navigator for a given prototype `go` target
+const TAB_ROUTES: Record<string, string> = {
+  feed: 'index', find: 'find', events: 'events', msgs: 'messages', logbook: 'logbook',
+};
 
-  // Fetch pilots with search and filter options
-  const { pilots, loading: pilotsLoading, error: pilotsError, refetch: refetchPilots } = usePilots({
-    location: searchQuery,
-    availableOnly: selectedFilter === 'available',
-    minRating: selectedFilter === 'top-rated' ? 4.5 : undefined
-  });
-
-  // Fetch weather data for major airports
-  const { weatherData, loading: weatherLoading, error: weatherError, refetch: refetchWeather } = useWeather({
-    stations: ['KLAX', 'KSFO', 'KSAN', 'KPHX', 'KDEN'],
-    autoRefresh: true,
-    refreshInterval: 30
-  });
-
-  // Debug logging
-  console.log('HomeScreen render - pilots:', pilots.length, 'loading:', pilotsLoading, 'error:', pilotsError);
-  console.log('HomeScreen render - weather:', weatherData.length, 'loading:', weatherLoading, 'error:', weatherError);
-
-  const filters = [
-    { id: 'all', title: 'All Pilots', icon: 'people' },
-    { id: 'available', title: 'Available', icon: 'checkmark-circle' },
-    { id: 'nearby', title: 'Nearby', icon: 'location' },
-    { id: 'top-rated', title: 'Top Rated', icon: 'star' },
-  ];
-
-  const handleSearch = (query: string) => {
-    console.log('Searching for:', query);
-    setSearchQuery(query);
+export default function FeedScreen() {
+  const navigation = useNavigation<any>();
+  const go = (route: string) => {
+    const tab = TAB_ROUTES[route];
+    if (tab) navigation.navigate(tab);
+    // invite:/event:/post/profile detail routes — wired as screens are built
   };
-
-  const handleFilterPress = (filterId: string) => {
-    console.log('Filter selected:', filterId);
-    setSelectedFilter(filterId);
-  };
-
-  const handlePilotPress = (pilotId: string) => {
-    console.log('Pilot selected:', pilotId);
-    router.push(`/pilot/${pilotId}`);
-  };
-
-  const handleFeaturePress = (featureId: string) => {
-    console.log('Feature selected:', featureId);
-    if (featureId === 'weather') {
-      refetchWeather();
-    }
-  };
-
-  const handleQuickBook = (pilotName: string) => {
-    console.log('Quick book for pilot:', pilotName);
-    setSelectedPilot(pilotName);
-    setShowBooking(true);
-  };
-
-  const handleBookFlight = (flightType: string) => {
-    console.log('Booking flight type:', flightType);
-    setShowBooking(false);
-    // Here you would typically create a flight request
-  };
-
-  const onRefresh = () => {
-    refetchPilots();
-    refetchWeather();
-  };
-
-  const isRefreshing = pilotsLoading || weatherLoading;
 
   return (
-    <View style={commonStyles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-      
-      {/* Test message */}
-      <View style={{ padding: 20, backgroundColor: colors.success + '20', margin: 16, borderRadius: 8 }}>
-        <Text style={{ color: colors.success, fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
-          ✅ App is working! HomeScreen is rendering.
-        </Text>
-      </View>
-      
-      {/* Debug info */}
-      <View style={{ padding: 16, backgroundColor: colors.info + '20', margin: 16, borderRadius: 8 }}>
-        <Text style={{ color: colors.info, fontSize: 12 }}>
-          Debug: Pilots: {pilots.length}, Loading: {pilotsLoading ? 'Yes' : 'No'}, Error: {pilotsError || 'None'}
-        </Text>
-        <Text style={{ color: colors.info, fontSize: 12 }}>
-          Weather: {weatherData.length}, Loading: {weatherLoading ? 'Yes' : 'No'}, Error: {weatherError || 'None'}
-        </Text>
-      </View>
-      
-      <LinearGradient
-        colors={[colors.background, colors.surface]}
-        style={commonStyles.header}
+    <View style={{ flex: 1, backgroundColor: H.paper }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 96 }}
       >
-        <View style={commonStyles.headerContent}>
-          <Text style={commonStyles.headerTitle}>Find Your Flight Partner</Text>
-          <Text style={commonStyles.headerSubtitle}>
-            Connect with certified pilots in your area
-          </Text>
-        </View>
-      </LinearGradient>
-
-      <ScrollView 
-        style={commonStyles.content}
-        refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Search Bar */}
-        <View style={[commonStyles.card, { marginBottom: 16 }]}>
-          <View style={commonStyles.searchContainer}>
-            <Icon name="search" size={20} color={colors.textSecondary} />
-            <TextInput
-              style={commonStyles.searchInput}
-              placeholder="Search by location..."
-              value={searchQuery}
-              onChangeText={handleSearch}
-              placeholderTextColor={colors.textSecondary}
-            />
+        {/* Brand bar */}
+        <View
+          style={{
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+            paddingHorizontal: spacing.screenX, paddingTop: 10, paddingBottom: 6,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+            <HText style={{ fontFamily: fonts.serif, fontSize: 28, letterSpacing: -0.4 }}>
+              Hobbs<HText style={{ fontFamily: fonts.serifItalic, fontSize: 28 }} color={H.amberDp}>.</HText>
+            </HText>
+            <HText kind="mono" color={H.inkMute}>KDWH · 78° clear</HText>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+            <Pressable hitSlop={8} style={{ padding: 8 }}>
+              <HIcon name="bell" size={20} />
+              <View
+                style={{
+                  position: 'absolute', top: 6, right: 6, width: 7, height: 7,
+                  borderRadius: 4, backgroundColor: H.amber,
+                }}
+              />
+            </Pressable>
+            <Pressable hitSlop={8} onPress={() => go('profile')} style={{ padding: 4 }}>
+              <HAvatar pilot={H_ME} size={34} />
+            </Pressable>
           </View>
         </View>
 
-        {/* Filter Buttons */}
-        <ScrollView 
-          horizontal 
+        {/* Hero */}
+        <View style={{ paddingHorizontal: spacing.screenX, paddingTop: 14, paddingBottom: 6 }}>
+          <HText kind="mono" color={H.amberDp}>Saturday at Hooks</HText>
+          <View style={{ marginTop: 8 }}>
+            <HText kind="display">A clear morning.{'\n'}
+              <HText kind="display" italic color={H.amberDp}>Who's flying?</HText>
+            </HText>
+          </View>
+          <HText kind="body" color={H.inkSoft} style={{ marginTop: 10 }}>
+            4 open invites within 100 nm. Mara's heading to Galveston for breakfast.
+          </HText>
+        </View>
+
+        {/* Quick actions */}
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
-          style={{ marginBottom: 20 }}
+          contentContainerStyle={{
+            paddingHorizontal: spacing.screenX, paddingTop: 14, paddingBottom: 18, gap: 8,
+          }}
         >
-          {filters.map((filter) => (
-            <TouchableOpacity
-              key={filter.id}
-              style={[
-                commonStyles.filterButton,
-                selectedFilter === filter.id && commonStyles.filterButtonActive
-              ]}
-              onPress={() => handleFilterPress(filter.id)}
-            >
-              <Icon 
-                name={filter.icon} 
-                size={16} 
-                color={selectedFilter === filter.id ? colors.background : colors.primary} 
-              />
-              <Text style={[
-                commonStyles.filterButtonText,
-                selectedFilter === filter.id && commonStyles.filterButtonTextActive
-              ]}>
-                {filter.title}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          <Pressable
+            onPress={() => go('post')}
+            style={{
+              paddingHorizontal: 16, paddingVertical: 10, borderRadius: radii.pill,
+              backgroundColor: H.ink, flexDirection: 'row', alignItems: 'center', gap: 6,
+            }}
+          >
+            <HIcon name="plus" size={14} stroke={2.2} color={H.hi} />
+            <HText style={{ fontFamily: fonts.sansSemibold, fontSize: 13 }} color={H.hi}>Post a flight</HText>
+          </Pressable>
+          <Pressable
+            onPress={() => go('find')}
+            style={{
+              paddingHorizontal: 16, paddingVertical: 10, borderRadius: radii.pill,
+              borderWidth: 1, borderColor: H.rule, flexDirection: 'row', alignItems: 'center', gap: 6,
+            }}
+          >
+            <HIcon name="compass" size={14} />
+            <HText style={{ fontFamily: fonts.sansSemibold, fontSize: 13 }}>Find a copilot</HText>
+          </Pressable>
+          <Pressable
+            onPress={() => go('events')}
+            style={{
+              paddingHorizontal: 16, paddingVertical: 10, borderRadius: radii.pill,
+              borderWidth: 1, borderColor: H.rule, justifyContent: 'center',
+            }}
+          >
+            <HText style={{ fontFamily: fonts.sansSemibold, fontSize: 13 }}>Fly-ins</HText>
+          </Pressable>
         </ScrollView>
 
-        {/* Weather Summary */}
-        {(weatherData.length > 0 || weatherLoading) && (
-          <View style={[commonStyles.card, { marginBottom: 20 }]}>
-            <View style={commonStyles.cardHeader}>
-              <Icon name="cloud" size={20} color={colors.primary} />
-              <Text style={commonStyles.cardTitle}>Current Weather</Text>
-              <TouchableOpacity onPress={refetchWeather}>
-                <Icon name="refresh" size={16} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            {weatherLoading ? (
-              <View style={{ alignItems: 'center', padding: 20 }}>
-                <Text style={commonStyles.textSecondary}>Loading weather data...</Text>
-              </View>
-            ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {weatherData.slice(0, 5).map((weather) => (
-                  <View key={weather.id} style={commonStyles.weatherCard}>
-                    <Text style={commonStyles.weatherStation}>{weather.station_id}</Text>
-                    <Text style={commonStyles.weatherCategory}>{weather.flight_category}</Text>
-                    <Text style={commonStyles.weatherTemp}>
-                      {weather.temperature ? `${Math.round(weather.temperature)}°F` : 'N/A'}
-                    </Text>
-                    <Text style={commonStyles.weatherWind}>
-                      {weather.wind_speed ? `${Math.round(weather.wind_speed)} kt` : 'Calm'}
-                    </Text>
-                  </View>
-                ))}
-              </ScrollView>
-            )}
-          </View>
-        )}
-
-        {/* Map View */}
-        <View style={[commonStyles.card, { marginBottom: 20 }]}>
-          <MapView pilots={pilots.map(pilot => ({
-            id: pilot.id,
-            name: pilot.name,
-            location: pilot.location,
-            distance: '5 miles', // Calculate actual distance
-            latitude: pilot.latitude || undefined,
-            longitude: pilot.longitude || undefined
-          }))} />
-        </View>
-
-        {/* Premium Features */}
-        <PremiumFeatures onFeaturePress={handleFeaturePress} />
-
-        {/* Pilots List */}
-        <View style={commonStyles.sectionHeader}>
-          <Text style={commonStyles.sectionTitle}>Available Pilots</Text>
-          <Text style={commonStyles.sectionSubtitle}>
-            {pilots.length} pilots found
-          </Text>
-        </View>
-
-        {pilotsError && (
-          <View style={[commonStyles.card, { backgroundColor: colors.error + '20', marginBottom: 16 }]}>
-            <Text style={[commonStyles.text, { color: colors.error }]}>
-              Error loading pilots: {pilotsError}
-            </Text>
-          </View>
-        )}
-
-        {pilotsLoading && (
-          <View style={[commonStyles.card, { alignItems: 'center', padding: 40 }]}>
-            <Icon name="refresh" size={48} color={colors.primary} />
-            <Text style={[commonStyles.text, { textAlign: 'center', marginTop: 16 }]}>
-              Loading pilots...
-            </Text>
-          </View>
-        )}
-
-        {!pilotsLoading && pilots.map((pilot) => (
-          <PilotCard
-            key={pilot.id}
-            pilot={{
-              id: pilot.id,
-              name: pilot.name,
-              experience: pilot.experience,
-              aircraft: pilot.aircraft,
-              location: pilot.location,
-              rating: pilot.rating || 0,
-              distance: '5 miles', // Calculate actual distance
-              avatar: pilot.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-              bio: pilot.bio || '',
-              certifications: pilot.certifications || []
+        {/* Open invites strip */}
+        <View style={{ marginBottom: 22 }}>
+          <HSectionTitle action="See all" onAction={() => go('find')}>
+            Open invites · within 100nm
+          </HSectionTitle>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingHorizontal: spacing.screenX, paddingTop: 10, paddingBottom: 4, gap: 12,
             }}
-            onPress={() => handlePilotPress(pilot.id)}
-          />
-        ))}
+          >
+            {H_INVITES.slice(0, 3).map((inv) => {
+              const p = H_PILOT(inv.from);
+              return (
+                <Pressable
+                  key={inv.id}
+                  onPress={() => go('invite:' + inv.id)}
+                  style={{ width: 230, backgroundColor: H.paperDp, borderRadius: radii.card, padding: 14 }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <HAvatar pilot={p} size={26} />
+                    <HText kind="small" color={H.inkSoft}>{p.name.split(' ')[0]} · {p.home}</HText>
+                  </View>
+                  <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <HText kind="sub">{inv.fromAp}</HText>
+                    <HIcon name="arrow-r" size={12} />
+                    <HText kind="sub">{inv.toAp}</HText>
+                  </View>
+                  <HText kind="small" color={H.inkSoft} style={{ marginTop: 4 }}>{inv.leg}</HText>
+                  <View style={{ marginTop: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <HText kind="mono">{inv.when.split('·')[0].trim()}</HText>
+                    <HChip tone="amber" solid label={`$${inv.cost} share`} />
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
 
-        {pilots.length === 0 && !pilotsLoading && (
-          <View style={[commonStyles.card, { alignItems: 'center', padding: 40 }]}>
-            <Icon name="airplane" size={48} color={colors.textSecondary} />
-            <Text style={[commonStyles.text, { textAlign: 'center', marginTop: 16 }]}>
-              No pilots found matching your criteria
-            </Text>
-            <Text style={[commonStyles.textSecondary, { textAlign: 'center', marginTop: 8 }]}>
-              Try adjusting your search or filters
-            </Text>
-          </View>
-        )}
+        {/* Activity */}
+        <HSectionTitle>From your circle</HSectionTitle>
+        <View style={{ marginTop: 10, paddingHorizontal: spacing.screenX }}>
+          {H_FEED.map((f, i) => (
+            <HFeedItem key={f.id} item={f} go={go} last={i === H_FEED.length - 1} />
+          ))}
+        </View>
       </ScrollView>
-
-      <FlightBooking
-        visible={showBooking}
-        onClose={() => setShowBooking(false)}
-        pilotName={selectedPilot}
-        onBookFlight={handleBookFlight}
-      />
     </View>
   );
 }

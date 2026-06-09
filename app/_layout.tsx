@@ -3,17 +3,27 @@ import React, { useEffect, useState } from 'react';
 import { Platform, SafeAreaView } from 'react-native';
 import { Stack, useGlobalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
 import { commonStyles } from '../styles/commonStyles';
 import { setupErrorLogging } from '../utils/errorLogger';
+import { hobbsFontMap } from '../theme/fonts';
+import { H } from '../theme/tokens';
 
 const STORAGE_KEY = 'emulated_device';
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const actualInsets = useSafeAreaInsets();
   const { emulate } = useGlobalSearchParams<{ emulate?: string }>();
   const [storedEmulate, setStoredEmulate] = useState<string | null>(null);
+  const [fontsLoaded] = useFonts(hobbsFontMap);
+
+  useEffect(() => {
+    if (fontsLoaded) SplashScreen.hideAsync().catch(() => {});
+  }, [fontsLoaded]);
 
   useEffect(() => {
     try {
@@ -56,15 +66,18 @@ export default function RootLayout() {
 
   console.log('RootLayout rendering with insets:', insetsToUse);
 
+  if (!fontsLoaded) return null;
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={[commonStyles.wrapper, {
+          backgroundColor: H.paper,
           paddingTop: insetsToUse.top,
           paddingBottom: insetsToUse.bottom,
           paddingLeft: insetsToUse.left,
           paddingRight: insetsToUse.right,
        }]}>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <Stack
           screenOptions={{
             headerShown: false,
